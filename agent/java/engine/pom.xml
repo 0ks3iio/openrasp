@@ -95,6 +95,12 @@
             <version>4.10</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.wso2.apache.httpcomponents/httpclient -->
+        <dependency>
+            <groupId>org.wso2.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.3.1.wso2v1</version>
+        </dependency>
     </dependencies>
 
     <build>
