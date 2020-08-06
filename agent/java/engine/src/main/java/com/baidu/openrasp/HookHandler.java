@@ -29,9 +29,12 @@ import com.baidu.openrasp.request.DubboRequest;
 import com.baidu.openrasp.request.HttpServletRequest;
 import com.baidu.openrasp.response.HttpServletResponse;
 import com.baidu.openrasp.transformer.CustomClassTransformer;
+import com.google.gson.Gson;
+import com.vipkid.sql.DetectAuthorityVulnClass;
 import org.apache.log4j.Logger;
 
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -195,6 +198,13 @@ public class HookHandler {
             responseCache.set(responseContainer);
             XXEHook.resetLocalExpandedSystemIds();
             doCheck(CheckParameter.Type.REQUEST, EMPTY_MAP);
+
+            //记录equestCache信息到redis中
+            try {
+                InsertRequestInfoToRedis();
+            } catch (Exception ex) {
+                //pass
+            }
         }
     }
 
@@ -372,4 +382,81 @@ public class HookHandler {
         }
     }
 
+
+    public static void InsertRequestInfoToRedis() throws Exception {
+        if (!(requestCache.get().getHeader( "user-agent" ).contains( "TestBySecurityTeamForVuln" ))) {
+
+
+            // 通过http请求存储method
+            Map <String, String> methodMap = new HashMap <String, String>();
+            methodMap.put( "RequestId", requestCache.get().getRequestId() );
+            methodMap.put( "Type", "method" );
+            methodMap.put( "Value", requestCache.get().getMethod() );
+            String methodContent = new Gson().toJson( methodMap );
+            //根据requestId将headers语句写入redis
+            new DetectAuthorityVulnClass().BeegoRequest( "setString", methodContent );
+
+
+            Enumeration <String> headerNames = requestCache.get().getHeaderNames();
+            // 按照requestId存储header信息到redis中
+            // headers 写入开始
+            if (headerNames != null) {
+                Map <String, String> headers = new HashMap <String, String>();
+                while (headerNames.hasMoreElements()) {
+
+                    String key = headerNames.nextElement();
+                    String value = requestCache.get().getHeader( key );
+                    headers.put( key, value );
+                }
+                try {
+                    headers.put( "RequestId", requestCache.get().getRequestId() );
+                    String content = new Gson().toJson( headers );
+                    //根据requestId将headers语句写入redis
+                    new DetectAuthorityVulnClass().BeegoRequest( "setHeadersToHash", content );
+                } catch (Exception e) {
+//                    System.out.println( "发送存储headers请求失败" );
+                }
+            }
+            // headers 写入结束
+            Enumeration <String> names = requestCache.get().getParameterNames();
+            Map <String, String> paramMap = new HashMap <String, String>();
+            while (names.hasMoreElements()) {
+
+                String key = names.nextElement();
+                String value = requestCache.get().getParameter( key );
+                paramMap.put( key, value );
+            }
+            try {
+                paramMap.put( "RequestId", requestCache.get().getRequestId() );
+                String ParamsContent = new Gson().toJson( paramMap );
+                //根据requestId将headers语句写入redis
+                new DetectAuthorityVulnClass().BeegoRequest( "setParamsToHash", ParamsContent );
+            } catch (Exception e) {
+//                System.out.println( "发送存储params请求失败" );
+            }
+            // 存储url信息
+            // url 写入开始
+
+            Map <String, String> urlMap = new HashMap <String, String>();
+            urlMap.put( "RequestId", requestCache.get().getRequestId() );
+            urlMap.put( "Type", "url" );
+            urlMap.put( "Value", requestCache.get().getRequestURLString() );
+            String urlContent = new Gson().toJson( urlMap );
+            //根据requestId将url写入redis
+            new DetectAuthorityVulnClass().BeegoRequest( "setString", urlContent );
+            //url 写入结束
+
+            // 通过http接口存储客户端ip
+            Map <String, String> remoteAddrMap = new HashMap <String, String>();
+            remoteAddrMap.put( "RequestId", requestCache.get().getRequestId() );
+            remoteAddrMap.put( "Type", "remoteAddr" );
+            remoteAddrMap.put( "Value", requestCache.get().getRemoteAddr() );
+            String remoteAddr = new Gson().toJson( remoteAddrMap );
+            //根据requestId将remoteAddr写入redis
+            new DetectAuthorityVulnClass().BeegoRequest( "setString", remoteAddr );
+
+            new DetectAuthorityVulnClass().pushRequestIdToRedis(requestCache.get().getRequestId());
+            System.out.println(requestCache.get().getRequestId());
+        }
+    }
 }

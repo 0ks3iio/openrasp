@@ -28,6 +28,8 @@ import com.baidu.openrasp.tool.model.BuildRASPModel;
 import com.baidu.openrasp.transformer.CustomClassTransformer;
 import com.baidu.openrasp.v8.CrashReporter;
 import com.baidu.openrasp.v8.Loader;
+import com.vipkid.rpc.*;
+import com.vipkid.sql.SqlTransformer;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
