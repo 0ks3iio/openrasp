@@ -33,12 +33,12 @@ public class RpcApacheHttpClientTransformer implements ClassFileTransformer {
                 final CtClass clazz = ClassPool.getDefault().get( className.replace( "/", "." ) );
                 CtMethod executeUpdateInternal = clazz.getDeclaredMethod( "build" );
                 executeUpdateInternal.insertBefore(
-                        "com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();" +
+                        "try{com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();" +
                                 "String currentUrl = this.uri.toString();" +
                                 "String resultStr = \"0\";" +
                                 "if (this.parameters != null && !this.parameters.isEmpty()) {resultStr = (new com.vipkid.rpc.DetectAuthorityVulnForRpcRequestClass()).detect2(request, currentUrl, this.method, this.parameters);}else{resultStr = (new com.vipkid.rpc.DetectAuthorityVulnForRpcRequestClass()).detect1(request, currentUrl, this.method);}" +
 //                                "String resultStr = (new com.vipkid.rpc.DetectAuthorityVulnForRpcRequestClass()).detect1(request, currentUrl, this.method, this.parameters);" +
-                                "if (resultStr.equals(\"1\")){ java.net.URI u = new java.net.URI( \"https://baidu.com/\" );this.uri = u;System.out.println(\"检测到请求来自扫描器，url替换成了: https://baidu.com\");}"
+                                "if (resultStr.equals(\"1\")){ java.net.URI u = new java.net.URI( \"https://baidu.com/\" );this.uri = u;System.out.println(\"检测到请求来自扫描器，url替换成了: https://baidu.com\");}}catch (Exception e){}"
                 );
                 // 返回字节码，并且detachCtClass对象
                 byte[] byteCode = clazz.toBytecode();
@@ -46,7 +46,7 @@ public class RpcApacheHttpClientTransformer implements ClassFileTransformer {
                 clazz.detach();
                 return byteCode;
             } catch (Exception ex) {
-                ex.printStackTrace();
+//                ex.printStackTrace();
             }
         }
         // 如果返回null则字节码不会被修改

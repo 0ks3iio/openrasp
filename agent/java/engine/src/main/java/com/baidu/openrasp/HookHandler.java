@@ -307,9 +307,11 @@ public class HookHandler {
         if (Config.getConfig().getDebugLevel() > 0) {
             a = System.currentTimeMillis();
         }
+        // 检测计时
         boolean isBlock = false;
         CheckParameter parameter = new CheckParameter(type, params);
         try {
+            // 获取检测结果
             isBlock = CheckerManager.check(type, parameter);
         } catch (Throwable e) {
             LogTool.error(ErrorType.PLUGIN_ERROR,
@@ -324,6 +326,7 @@ public class HookHandler {
                 LOGGER.info(message);
             }
         }
+        // 根据检测结果判断是否要进行拦截
         if (isBlock) {
             handleBlock(parameter);
         }

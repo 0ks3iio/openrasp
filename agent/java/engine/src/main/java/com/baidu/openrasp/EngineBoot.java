@@ -29,7 +29,13 @@ import com.baidu.openrasp.transformer.CustomClassTransformer;
 import com.baidu.openrasp.v8.CrashReporter;
 import com.baidu.openrasp.v8.Loader;
 import com.vipkid.rpc.*;
+import com.vipkid.sql.InsertBeforeAllClass;
 import com.vipkid.sql.SqlTransformer;
+import com.vipkid.sql.SqlTransformer1;
+import com.vipkid.sql.SqlTransformer2;
+import com.vipkid.sql.SqlTransformer3;
+import com.vipkid.test.TestGetMethodsParamtersTransformer;
+import com.vipkid.deserialization.DeserializationTransforms;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
@@ -72,7 +78,9 @@ public class EngineBoot implements Module {
         if (!JS.Initialize()) {
             return;
         }
+        // hook点管理模块初始化
         CheckerManager.init();
+        // 字节码转换模块的初始化
         initTransformer(inst);
         if (CloudUtils.checkCloudControlEnter()) {
             CrashReporter.install(Config.getConfig().getCloudAddress() + "/v1/agent/crash/report",
@@ -129,11 +137,26 @@ public class EngineBoot implements Module {
 
     /**
      * 初始化类字节码的转换器
-     *
+     * 字节码转换模块是整个Java RASP的重中之重，OpenRASP是使用的Javassist来操作字节码的，其大致的写法和ASM并无区别，接下来一步步跟进看一下
      * @param inst 用于管理字节码转换器
+     *
      */
     private void initTransformer(Instrumentation inst) throws UnmodifiableClassException {
+        // 这里添加自定义的拦截类
+        // inst.addTransformer( new SqlTransformer(), true );
+        inst.addTransformer( new SqlTransformer3(), true );
+        // inst.addTransformer( new RpcSpringframeworkRestTemplateTransformer(), true );
+        // inst.addTransformer( new RpcApacheHttpClientTransformer(), true );
+        // inst.addTransformer( new RpcApacheHttpClient1Transformer(), true );
+        // inst.addTransformer( new GetJsonContentFromServlet(), true );
+        // inst.addTransformer( new ServletTransformer(), true );
+        // inst.addTransformer( new Body(), true );
+        // inst.addTransformer( new InsertBeforeAllClass(), true );
+        // inst.addTransformer( new TestGetMethodsParamtersTransformer(), true );
+        // inst.addTransformer( new DeserializationTransforms(), true );
+        // 可以看到在实例化了ClassFileTransformer实现的CustomClassTransformer后
         transformer = new CustomClassTransformer(inst);
+        // 调用了一个自己写的retransform方法，在这个方法中对Instrumentation已加载的所有类进行遍历，将其进行类的重新转换
         transformer.retransform();
     }
 

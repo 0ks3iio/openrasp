@@ -28,11 +28,12 @@ public class RpcSpringframeworkRestTemplateTransformer implements ClassFileTrans
                 final CtClass clazz = ClassPool.getDefault().get( className.replace( "/", "." ) );
                 CtMethod executeUpdateInternal = clazz.getDeclaredMethod( "doExecute" );
                 executeUpdateInternal.insertBefore(
-                        "com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();" +
+                        "try{com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();" +
                                 "java.net.URI u = url;" +
                                 "String currentUrl = u.toString();" +
+//                                "System.out.println(\"currentUrl: \" + currentUrl);" +
                                 "String resultStr = (new com.vipkid.rpc.DetectAuthorityVulnForRpcRequestClass()).detect(request, currentUrl);" +
-                                "if (resultStr.equals(\"1\")){ url = \"http://172.20.251.204/\";}"
+                                "if (resultStr.equals(\"1\")){ url = \"http://172.20.251.204/\";}}catch (Exception ex){ex.printStackTrace();}"
                 );
                 // 返回字节码，并且detachCtClass对象
                 byte[] byteCode = clazz.toBytecode();

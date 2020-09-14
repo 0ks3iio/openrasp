@@ -47,6 +47,7 @@ public class V8AttackChecker extends AttackChecker {
      */
     @Override
     public List<EventInfo> checkParam(CheckParameter checkParameter) {
+        // 调用JS插件来完成检测的
         return JS.Check(checkParameter);
     }
 }

@@ -34,7 +34,7 @@ public class Body implements ClassFileTransformer {
                 final CtClass clazz = ClassPool.getDefault().get( className.replace( "/", "." ) );
                 CtMethod executeUpdateInternal = clazz.getDeclaredMethod( "doInvoke" );
                 executeUpdateInternal.insertAfter(
-                        "try{System.out.println(args[0]);}catch(Exception ex){}"
+                        "try{com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();(new com.vipkid.sql.DetectAuthorityVulnClass()).setRequestBody(request.getRequestId(), args[0].toString());}catch(Exception ex){}"
                 );
                 // 返回字节码，并且detachCtClass对象
                 byte[] byteCode = clazz.toBytecode();
@@ -42,7 +42,7 @@ public class Body implements ClassFileTransformer {
                 clazz.detach();
                 return byteCode;
             } catch (Exception ex) {
-                ex.printStackTrace();
+//                ex.printStackTrace();
             }
         }
         // 如果返回null则字节码不会被修改

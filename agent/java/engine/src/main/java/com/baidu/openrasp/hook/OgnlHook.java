@@ -59,6 +59,8 @@ public class OgnlHook extends AbstractClassHook {
      */
     @Override
     protected void hookMethod(CtClass ctClass) throws IOException, CannotCompileException, NotFoundException {
+        // 首先生成需要插入到代码中的字节码，然后调用其自己写的inserAfter来将字节码插入到hook点的后面
+        //（其实就是决定是插在hook方法最顶部，还是return前的最后一行，这决定了调用顺序）
         String src = getInvokeStaticSrc(OgnlHook.class, "checkOgnlExpression",
                 "$_", Object.class);
         insertAfter(ctClass, "topLevelExpression", null, src);
@@ -73,6 +75,7 @@ public class OgnlHook extends AbstractClassHook {
 
 
         if (object != null) {
+            // 判断获取的表达式是不是String类型，如果是，将表达式放入HashMap中，然后调用HookHandler.doCheck方法
             String expression = String.valueOf(object);
             if (expression.length() >= Config.getConfig().getOgnlMinLength()) {
                 HashMap<String, Object> params = new HashMap<String, Object>();

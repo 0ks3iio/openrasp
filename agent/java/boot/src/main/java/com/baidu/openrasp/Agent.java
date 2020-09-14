@@ -30,6 +30,14 @@ import static com.baidu.openrasp.Module.START_MODE_NORMAL;
 
 /**
  * Created by tyy on 3/27/17.
+ * OpenRASP的执行流很简单主要分为以下几部分：
+ * agent初始化
+ * V8引擎初始化
+ * 日志配置模块初始化
+ * 插件模块初始化
+ * hook点管理模块初始化
+ * 字节码转换模块初始化
+ *
  * 加载agent的入口类，先于主函数加载
  */
 public class Agent {
@@ -62,13 +70,14 @@ public class Agent {
     }
 
     /**
+     * agent初始化
      * 启动时加载的agent入口方法
      *
      * @param agentArg 启动参数
      * @param inst     {@link Instrumentation}
      */
     public static void premain(String agentArg, Instrumentation inst) {
-        init(START_MODE_NORMAL, START_ACTION_INSTALL, inst);
+            init(START_MODE_NORMAL, START_ACTION_INSTALL, inst);
     }
 
     /**
@@ -89,8 +98,16 @@ public class Agent {
      */
     public static synchronized void init(String mode, String action, Instrumentation inst) {
         try {
+            /*
+            这里在模块加载前做了一个非常重要的操作——将Java agent的jar包加入到BootStrap class path中，如果不进行特殊设定，则会默认将jar包加入到System class path
+            中，对于研究过类加载机制的朋友们来说一定不陌生，这样做得好处就是可以将jar包加到BootStrapClassLoader所加载的路径中，在类加载时可以保证加载顺序位于最顶层，
+            这样就可以不受到类加载顺序的限制，拦截拦截系统类。当将jar包添加进BootStrap class path后，就是完成模块加载的初始化流程中，这里会根据指定的jar包来实例化
+            模块加载的主流程
+             */
+            // 添加jar文件到jdk的跟路径下，优先加载
             JarFileHelper.addJarToBootstrap(inst);
             readVersion();
+            // 加载所有 RASP 模块
             ModuleLoader.load(mode, action, inst);
         } catch (Throwable e) {
             System.err.println("[OpenRASP] Failed to initialize, will continue without security protection.");

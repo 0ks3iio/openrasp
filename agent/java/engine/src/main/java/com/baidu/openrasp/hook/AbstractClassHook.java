@@ -80,6 +80,8 @@ public abstract class AbstractClassHook {
      */
     public byte[] transformClass(CtClass ctClass) {
         try {
+            // 调用了每个具体hook类的hookMethod方法来执行具体的逻辑，
+            // 值得注意的是这里的最终返回也是一个byte数组，具体的流程和ASM并无两样。跟进OgnlHook#hookMethod：
             hookMethod(ctClass);
             return ctClass.toBytecode();
         } catch (Throwable e) {

@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * 自定义类字节码转换器，用于hook类德 方法
+ * OpenRASP是如何添加hook点并完成相应hook流程的
  */
 public class CustomClassTransformer implements ClassFileTransformer {
     public static final Logger LOGGER = Logger.getLogger(CustomClassTransformer.class.getName());
@@ -73,7 +74,10 @@ public class CustomClassTransformer implements ClassFileTransformer {
 
     public CustomClassTransformer(Instrumentation inst) {
         this.inst = inst;
+        // inst.addTransformer的功能是在类加载时做拦截，对输入的类的字节码进行修改，也就是具体的检测流程插入都在这一部分
         inst.addTransformer(this, true);
+        // 但是OpenRASP的hook点是在哪里加入的呢？其实就是在addAnnotationHook这里完成的，
+        // addAnnotationHook会到com.baidu.openrasp.hook下对所有的类进行扫描，将所有由HookAnnotation注解的类全部加入到HashSet中
         addAnnotationHook();
     }
 
@@ -130,6 +134,8 @@ public class CustomClassTransformer implements ClassFileTransformer {
 
     /**
      * 过滤需要hook的类，进行字节码更改
+     * RASP的具体拦截流程是在ClassFileTransformer#transform中完成的
+     * 在OpenRASP中则是在CustomClassTransformer#transform中完成的
      *
      * @see ClassFileTransformer#transform(ClassLoader, String, Class, ProtectionDomain, byte[])
      */
@@ -143,15 +149,19 @@ public class CustomClassTransformer implements ClassFileTransformer {
             jspClassLoaderCache.put(className.replace("/", "."), new SoftReference<ClassLoader>(loader));
         }
         for (final AbstractClassHook hook : hooks) {
+            // 先检测当前拦截类是否为已经注册的需要hook的类
             if (hook.isClassMatched(className)) {
                 CtClass ctClass = null;
                 try {
+                    // 如果是hook的类则直接利用javassist的方式创建ctClass
                     ClassPool classPool = new ClassPool();
                     addLoader(classPool, loader);
                     ctClass = classPool.makeClass(new ByteArrayInputStream(classfileBuffer));
                     if (loader == null) {
                         hook.setLoadedByBootstrapLoader(true);
                     }
+                    // 创建完ctClass后，直接调用了当前hook的transformClass方法
+                    // 由于接下来涉及到跟进具体的hook处理类中，所以接下来的分析是以跟进OgnlHook这个hook来跟进的
                     classfileBuffer = hook.transformClass(ctClass);
                     if (classfileBuffer != null) {
                         checkNecessaryHookType(hook.getType());

@@ -1,4 +1,5 @@
 package com.vipkid.sql;
+
 import com.baidu.openrasp.request.AbstractRequest;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -6,6 +7,7 @@ import com.google.gson.JsonParser;
 
 import java.util.HashMap;
 import java.util.Map;
+
 /**
  * Description
  * <p>
@@ -80,7 +82,7 @@ public class DetectAuthorityVulnClass {
             parameters.put( "Value", currentSql );
             String content = new Gson().toJson( parameters );
 
-            System.out.println("sql信息：" + content);
+            System.out.println( "sql信息：" + content );
             try {
                 //根据requestId将sql语句写入redis
                 BeegoRequest( "setSqlToListByRequestId", content );
@@ -159,5 +161,14 @@ public class DetectAuthorityVulnClass {
         parameters.put( "RequestId", requestId );
         String url = BeeGoServerAddress + "pushRequestIdToRedis";
         return new DiyCloudHttp().DiyRequest( url, new Gson().toJson( parameters ) );
+    }
+
+    public void setClassAndMethod(String requestId, String info) throws Exception {
+        String url = BeeGoServerAddress + "pushClassInfoToRedis";
+        Map <String, Object> parameters = new HashMap <String, Object>();
+        parameters.put( "RequestId", requestId );
+        parameters.put( "ClassAndMethodInfo", info );
+        String content = new Gson().toJson( parameters );
+        new JsonParser().parse( new DiyCloudHttp().DiyRequest( url, content ) ).getAsJsonObject();
     }
 }

@@ -20,6 +20,7 @@ import java.net.URI;
 public class ServletTransformer implements ClassFileTransformer {
     @Override
     public byte[] transform(final ClassLoader loader, final String className, final Class <?> classBeingRedefined, final ProtectionDomain protectionDomain, final byte[] classfileBuffer) {
+
         if ("javax.servlet.http.HttpServlet".equals( className.replace( "/", "." ) )) {
             try {
                 //1、所引用的类型，必须通过ClassPool获取后才可以使用
@@ -28,10 +29,10 @@ public class ServletTransformer implements ClassFileTransformer {
                 final CtClass clazz = ClassPool.getDefault().get( className.replace( "/", "." ) );
                 CtMethod executeUpdateInternal = clazz.getDeclaredMethod( "service" );
                 executeUpdateInternal.insertBefore(
-//                                "com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();" +
+                                "com.baidu.openrasp.request.AbstractRequest request = com.baidu.openrasp.HookHandler.requestCache.get();" +
 //                                        "System.out.println(\"requestid: \" + request.getRequestId());" +
 //                                        "javax.servlet.http.HttpServletRequestWrapper r = req;" +
-                                "System.out.println(req.getMethod() +\" \"+req.getRequestURL().toString() +\" \"+req.getProtocol());" +
+//                                "System.out.println(req.getMethod() +\" \"+req.getRequestURL().toString() +\" \"+req.getProtocol());" +
 //                                "java.util.Enumeration/*<string>*/ s = req.getHeaderNames();" +
 //                                "while (s.hasMoreElements()){String header = s.nextElement();System.out.println( header+ \" : \"+ req.getHeader(header)); }" +
 //                                "System.out.println(\"email: \" + req.getParameter(\"email\"));" +
@@ -39,9 +40,9 @@ public class ServletTransformer implements ClassFileTransformer {
 //                                "System.out.println(\"getQueryString: \" + req.getQueryString());" +
                                         "java.util.Enumeration headers = req.getHeaderNames();" +
                                         "while(headers.hasMoreElements()) {String header = (String)headers.nextElement();System.out.println(header +\": \"+req.getHeader(header)); }" +
-                                "java.util.Enumeration paramNames = req.getParameterNames();" +
-                                "while(paramNames.hasMoreElements()) {String paramName = (String)paramNames.nextElement();System.out.println(paramName); }" +
-                                "System.out.println(\"----------\");"
+//                                "System.out.println(\"--------打印 GET 类型参数值----------\");" +
+                                        "java.util.Enumeration paramNames = req.getParameterNames();" +
+                                "while(paramNames.hasMoreElements()) {String paramName = (String)paramNames.nextElement();System.out.println(paramName + \": \" + req.getParameter(paramName)); }"
 //                                "System.out.println(\"getInputStream: \" + r.getInputStream());" +
 //                                "java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(r.getInputStream(), \"utf-8\"));java.lang.StringBuffer sb = new java.lang.StringBuffer(\"\");String temp;while ((temp = br.readLine()) != null) {sb.append(temp);} " +
 //                                "String param = sb.toString();" +
@@ -55,7 +56,7 @@ public class ServletTransformer implements ClassFileTransformer {
                 clazz.detach();
                 return byteCode;
             } catch (Exception ex) {
-                ex.printStackTrace();
+//                ex.printStackTrace();
             }
         }
         // 如果返回null则字节码不会被修改
