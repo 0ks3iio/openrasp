@@ -75,7 +75,7 @@ public class AttackInfo extends EventInfo {
     }
 
     public AttackInfo(CheckParameter parameter, String action, String message, String pluginName, int confidence,
-            String algorithm, Map params, JsonObject extras) {
+                      String algorithm, Map params, JsonObject extras) {
         this.parameter = parameter;
         this.action = action;
         this.message = message;
@@ -188,8 +188,10 @@ public class AttackInfo extends EventInfo {
             String method = request.getMethod();
             info.put("request_method", method != null ? method.toLowerCase() : null);
         }
-        for (Entry<String, JsonElement> entry : extras.entrySet()) {
-            info.put(entry.getKey(), entry.getValue());
+        if (extras != null) {
+            for (Entry<String, JsonElement> entry : extras.entrySet()) {
+                info.put(entry.getKey(), entry.getValue());
+            }
         }
         return info;
     }

@@ -31,6 +31,7 @@ import com.baidu.openrasp.response.HttpServletResponse;
 import com.baidu.openrasp.transformer.CustomClassTransformer;
 import com.google.gson.Gson;
 import com.vipkid.sql.DetectAuthorityVulnClass;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import java.util.Arrays;
@@ -314,8 +315,15 @@ public class HookHandler {
             // 获取检测结果
             isBlock = CheckerManager.check(type, parameter);
         } catch (Throwable e) {
-            LogTool.error(ErrorType.PLUGIN_ERROR,
-                    "plugin check error: " + e.getClass().getName() + " because: " + e.getMessage(), e);
+            String msg = "plugin check error: " + e.getClass().getName() + " because: " + e.getMessage();
+            AbstractRequest request = HookHandler.requestCache.get();
+            if (request != null) {
+                StringBuffer url = request.getRequestURL();
+                if (!StringUtils.isEmpty(url)) {
+                    msg = url + " " + msg;
+                }
+            }
+            LogTool.error(ErrorType.PLUGIN_ERROR, msg, e);
         }
         if (a > 0) {
             long t = System.currentTimeMillis() - a;
@@ -366,7 +374,7 @@ public class HookHandler {
             doRealCheckWithoutRequest(type, params);
         } catch (Throwable t) {
             if (t instanceof SecurityException) {
-                throw (SecurityException)t;
+                throw (SecurityException) t;
             }
         } finally {
             enableCurrThreadHook.set(enableHookCache);

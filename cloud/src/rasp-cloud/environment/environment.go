@@ -1,4 +1,4 @@
-//Copyright 2017-2019 Baidu Inc.
+//Copyright 2017-2020 Baidu Inc.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -52,7 +52,6 @@ var (
 
 func init() {
 	chdir()
-	OldPid = readPIDFILE(PidFileName)
 	StartFlag := &conf.Flag{}
 	StartFlag.StartType = flag.String("type", "", "Specify startup type: panel/agent, or both if none provided")
 	StartFlag.Daemon = flag.Bool("d", false, "Fork to background")
@@ -60,6 +59,11 @@ func init() {
 	StartFlag.Operation = flag.String("s", "", "Send signal to master process: stop/restart")
 	StartFlag.Upgrade = flag.String("upgrade", "", "Execute upgrade job, e.g update ElasticSearch mapping")
 	flag.Parse()
+	conf.InitConfig(StartFlag)
+	LogPath = conf.AppConfig.LogPath
+	LogApiPath = LogPath + "/api"
+	PidFileName = LogPath + "/pid.file"
+	OldPid = readPIDFILE(PidFileName)
 	if *StartFlag.Version {
 		handleVersionFlag()
 	}
@@ -89,7 +93,6 @@ func init() {
 		allType := conf.StartTypeDefault
 		StartFlag.StartType = &allType
 	}
-	conf.InitConfig(StartFlag)
 	if *StartFlag.Operation != "" {
 		CheckForkStatus(true)
 	} else {
@@ -143,11 +146,9 @@ func restart() {
 			time.Sleep(1 * time.Second)
 			if restartCnt%60 == 0 {
 				beego.Info("this operation may spend about a few minutes")
-				log.Println("this operation may spend about a few minutes")
 			}
 			if restartCnt >= 300 {
 				beego.Info("Restart timeout! Probably the process has been restarted immediately")
-				log.Fatalln("Restart timeout! Probably the process has been restarted immediately")
 			}
 		}
 		log.Println("Restart success!")
@@ -174,7 +175,6 @@ func stop() {
 		}
 	} else {
 		beego.Info("The process id:" + OldPid + " is not exists!")
-		log.Printf("The process id:%s is not exists!", OldPid)
 	}
 	os.Exit(0)
 }
@@ -216,6 +216,8 @@ func HandleUpgrade(flag string) {
 		UpdateMappingConfig["error-alarm-template"] = "120to121"
 	case "121to122":
 		log.Println("Going to update 121to122")
+	case "134to135":
+		UpdateMappingConfig["attack-alarm-template"] = "134to135"
 	default:
 		log.Println("Unknown upgrade job specified: " + flag)
 	}
@@ -226,7 +228,6 @@ func HandleReset(startFlag *conf.Flag) {
 	pwd1, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println()
 	if err != nil {
-		fmt.Println("failed to read password from terminal: " + err.Error())
 		beego.Info("failed to read password from terminal: ", err)
 		os.Exit(tools.ErrCodeResetUserFailed)
 	}
@@ -234,7 +235,6 @@ func HandleReset(startFlag *conf.Flag) {
 	pwd2, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println()
 	if err != nil {
-		fmt.Println("failed to read password from terminal: " + err.Error())
 		beego.Info("failed to read password from terminal: ", err)
 		os.Exit(tools.ErrCodeResetUserFailed)
 	}
@@ -254,7 +254,7 @@ func HandleDaemon() {
 	}
 	if CheckPIDAlreadyRunning(PidFileName) {
 		RecoverPid(PidFileName, false)
-		log.Fatal("fail to start! for details please check the log in 'logs/api/agent-cloud.log'")
+		beego.Error("fail to start! for details please check the log in " + LogApiPath + "/agent-cloud.log")
 	} else {
 		var cnt int
 		port := beego.AppConfig.DefaultInt("httpport", 8080)
@@ -267,14 +267,11 @@ func HandleDaemon() {
 		}
 
 		if cnt == 29 {
-			beego.Error("start timeout! for details please check the log in 'logs/api/agent-cloud.log'")
-			log.Fatal("start timeout! for details please check the log in 'logs/api/agent-cloud.log'")
+			beego.Error("start timeout! for details please check the log in " + LogApiPath + "/agent-cloud.log")
 		} else if CheckPort(port) {
-			beego.Info("start successfully, for details please check the log in 'logs/api/agent-cloud.log'")
-			log.Println("start successfully, for details please check the log in 'logs/api/agent-cloud.log'")
+			beego.Info("start successfully, for details please check the log in " + LogApiPath + "/agent-cloud.log")
 		} else {
-			beego.Error("fail to start! for details please check the log in 'logs/api/agent-cloud.log'")
-			log.Fatal("fail to start! for details please check the log in 'logs/api/agent-cloud.log'")
+			beego.Error("fail to start! for details please check the log in " + LogApiPath + "/agent-cloud.log")
 		}
 
 	}
@@ -284,8 +281,7 @@ func HandleDaemon() {
 func CheckForkStatus(remove bool) {
 	f, ret := newPIDFile(PidFileName, remove)
 	if ret == false && f == nil {
-		beego.Error("create %s error, for details please check the log in 'logs/api/agent-cloud.log'", PidFileName)
-		log.Fatalf("create %s error, for details please check the log in 'logs/api/agent-cloud.log'", PidFileName)
+		beego.Error("create %s error, for details please check the log in " + LogApiPath, PidFileName)
 	}
 }
 
@@ -394,8 +390,7 @@ func processExists(pid string) (bool, error) {
 func checkPIDAlreadyExists(path string, remove bool) bool {
 	//pid := readPIDFILE(path)
 	if res, err := processExists(OldPid); res && err == nil && OldPid != " " {
-		beego.Error("the main process %s has already exist!", OldPid)
-		log.Printf("the main process %s has already exist!", OldPid)
+		beego.Info("the main process " + OldPid + " has already exist!")
 		return true
 	}
 	if remove {

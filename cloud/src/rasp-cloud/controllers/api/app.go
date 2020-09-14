@@ -1,4 +1,4 @@
-//Copyright 2017-2019 Baidu Inc.
+//Copyright 2017-2020 Baidu Inc.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -797,6 +797,10 @@ func (o *AppController) ConfigAlarm() {
 	if param.GeneralAlarmConf != nil {
 		models.AlarmCheckInterval = param.GeneralAlarmConf.AlarmCheckInterval
 		o.validGeneralAlarmConf(param.GeneralAlarmConf)
+		err = models.UpdateGeneralAlarmConfig(param.GeneralAlarmConf)
+		if err != nil {
+			o.ServeError(http.StatusBadRequest, "failed to update alarm config", err)
+		}
 	}
 	content, err := json.Marshal(param)
 	if err != nil {
@@ -809,10 +813,6 @@ func (o *AppController) ConfigAlarm() {
 	app, err = models.UpdateAppById(param.AppId, updateData)
 	if err != nil {
 		o.ServeError(http.StatusBadRequest, "failed to update app", err)
-	}
-	err = models.UpdateGeneralAlarmConfig(param.GeneralAlarmConf)
-	if err != nil {
-		o.ServeError(http.StatusBadRequest, "failed to update alarm config", err)
 	}
 	models.AddOperation(app.Id, models.OperationTypeUpdateAlarmConfig, o.Ctx.Input.IP(),
 		"Alarm configuration updated for "+param.AppId)

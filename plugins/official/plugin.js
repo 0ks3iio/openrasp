@@ -1,4 +1,4 @@
-const plugin_version = '2020-0819-1440'
+const plugin_version = '2020-0901-1300'
 const plugin_name    = 'official'
 const plugin_desc    = '官方插件'
 
@@ -45,6 +45,9 @@ var algorithmConfig = {
 
         // 若 is_dev 开启，表示为线下环境，将开启更多消耗性能的检测算法
         is_dev:  false,
+
+        // 若 log_event 开启，将打印应用行为信息到 plugin.log
+        log_event: false,
 
         // schema 版本
         schema_version: 1
@@ -233,7 +236,8 @@ var algorithmConfig = {
             '.burpcollaborator.net',
             '.tu4.org',
             '.2xss.cc',
-            '.bxss.me'
+            '.bxss.me',
+            '.godns.vip'
         ]
     },
     // SSRF - 是否允许访问混淆后的IP地址
@@ -335,6 +339,11 @@ var algorithmConfig = {
     // copy_webshell: {
     //     action: 'block'
     // },
+
+    link_webshell: {
+        name:   '算法1 - 通过链接方式获取 WebShell',
+        action: 'block'
+    },
 
     // 文件管理器 - 用户输入匹配，仅当直接读取绝对路径时才检测
     directory_userinput: {
@@ -629,7 +638,7 @@ var forcefulBrowsing = {
 	    '/etc/issue',
         '/etc/shadow',
         '/etc/passwd',
-        '/etc/hosts',
+        // '/etc/hosts',
         '/etc/apache2/apache2.conf',
         '/root/.bash_history',
         '/root/.bash_profile',
@@ -867,7 +876,6 @@ function validate_stack_java(stacks) {
         'org.springframework.expression.spel.support.ReflectiveMethodExecutor.execute': "Using SpEL expressions",
         'freemarker.template.utility.Execute.exec':                                     "Using FreeMarker template",
         'org.jboss.el.util.ReflectionUtil.invokeMethod':                                "Using JBoss EL method",
-        'net.rebeyond.behinder.payload.java.Cmd.RunCMD':                                "Using BeHinder defineClass webshell",
         'org.codehaus.groovy.runtime.ProcessGroovyMethods.execute':                     "Using Groovy library",
         'bsh.Reflect.invokeMethod':                                                     "Using BeanShell library",
         'jdk.scripting.nashorn/jdk.nashorn.internal.runtime.ScriptFunction.invoke':     "Using Nashorn engine"
@@ -906,6 +914,11 @@ function validate_stack_java(stacks) {
 
         if (method.startsWith('ysoserial.Pwner')) {
             message = "Using YsoSerial tool"
+            break
+        }
+
+        if (method.startsWith('net.rebeyond.behinder')) {
+            message = "Using BeHinder defineClass webshell"
             break
         }
 
@@ -1509,6 +1522,76 @@ function _(message, args)
 
 // 开始
 
+// 如果开启记录日志，先打印日志，再执行后续逻辑
+if (algorithmConfig.meta.log_event) {
+
+    plugin.register('directory', function (params, context) {
+        plugin.log('Listing directory content: ' + params.realpath, params.stack)
+        return clean
+    })
+
+    plugin.register('fileUpload', function (params, context) {
+        plugin.log('File upload: ' + params.filename)
+        return clean
+    })
+
+    plugin.register('rename', function (params, context) {
+        plugin.log('Rename file - From ' + params.source + ' to ' + params.dest)  
+        return clean
+    })
+
+    plugin.register('ssrf', function (params, context) {
+        plugin.log('SSRF requesting ' + params.url + ' (IP: ' + params.ip + ')')
+        return clean
+    })
+
+    plugin.register('command', function (params, context) {
+        plugin.log('Execute command: ' + params.command, params.stack)
+        return clean
+    })
+
+    plugin.register('ognl', function (params, context) {
+        plugin.log('Evaluating OGNL expression: ' + params.expression)
+        return clean
+    })
+
+    plugin.register('xxe', function (params, context) {
+        plugin.log('Loading XML entity: ' + params.entity)
+        return clean
+    })
+
+    plugin.register('eval', function (params, context) {
+        plugin.log('Evaluating code: ' + params.code)
+        return clean
+    })
+
+    plugin.register('loadLibrary', function (params, context) {
+        plugin.log('Loading library: ' + params.path)
+        return clean
+    })
+
+    plugin.register('include', function (params, context) {
+        plugin.log('Include file: ' + params.url)
+        return clean
+    })
+
+    plugin.register('readFile', function (params, context) {
+        plugin.log('Read file: ' + params.realpath)
+        return clean
+    })
+
+    plugin.register('writeFile', function (params, context) {
+        plugin.log('Write file: ' + params.realpath)
+        return clean
+    })
+
+    plugin.register('sql', function (params, context) {
+        plugin.log('SQL query: ' + params.query)
+        return clean
+    })
+}
+
+
 // 若开启「研发模式」，将只使用JS插件
 if (! algorithmConfig.meta.is_dev && RASP.get_jsengine() !== 'v8') {
     // v1.1 之前的版本，SQL/SSRF 使用 java 原生实现，需要将插件配置传递给 java
@@ -1930,12 +2013,20 @@ plugin.register('directory', function (params, context) {
     // 算法2 - 检查PHP菜刀等后门
     if (algorithmConfig.directory_reflect.action != 'ignore')
     {
-        // 目前，只有 PHP 支持通过堆栈方式，拦截列目录功能
         if (language == 'php' && validate_stack_php(params.stack))
         {
             return {
                 action:     algorithmConfig.directory_reflect.action,
                 message:    _("WebShell activity - Using file manager function with China Chopper WebShell"),
+                confidence: 90,
+                algorithm:  'directory_reflect'
+            }
+        }
+        else if (language == 'java' && validate_stack_java(params.stack))
+        {
+            return {
+                action:     algorithmConfig.directory_reflect.action,
+                message:    _("WebShell activity - Using file manager function with Java WebShell"),
                 confidence: 90,
                 algorithm:  'directory_reflect'
             }
@@ -2339,6 +2430,30 @@ if (algorithmConfig.rename_webshell.action != 'ignore')
 }
 
 
+if (algorithmConfig.link_webshell.action != 'ignore')
+{
+    plugin.register('link', function (params, context) {
+        // 目标文件在webroot内才认为是写后门
+        if (!is_outside_webroot(context.appBasePath, params.dest, null)) {
+            // 源文件是干净的文件，目标文件是脚本文件，判定为重命名方式写后门
+            if (cleanFileRegex.test(params.source) && scriptFileRegex.test(params.dest))
+            {
+                return {
+                    action:    algorithmConfig.link_webshell.action,
+                    message:   _("File upload - Linking a non-script file to server-side script file, source file is %1%, link type", [
+                        params.source,
+                        params.type
+                    ]),
+                    confidence: 90,
+                    algorithm:  'link_webshell'
+                }
+            }
+        }
+
+        return clean
+    })
+}
+
 plugin.register('command', function (params, context) {
     var cmd        = params.command
     var server     = context.server
@@ -2414,6 +2529,7 @@ plugin.register('command', function (params, context) {
                 if (raw_tokens.length == 0) {
                     raw_tokens = RASP.cmd_tokenize(cmd)
                 }
+
                 if (is_token_changed(raw_tokens, userinput_idx, value.length)) {
                     reason = _("Command injection - command structure altered by user input, request parameter name: %1%, value: %2%", [name, value])
                     return true
@@ -2939,7 +3055,6 @@ if (algorithmConfig.response_dataLeak.action != 'ignore') {
             }
         }
     })
-
 }
 
 plugin.log('OpenRASP official plugin: Initialized, version', plugin_version)
